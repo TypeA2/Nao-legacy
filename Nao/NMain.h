@@ -16,6 +16,8 @@
 #include <QStandardPaths>
 #include <QMessageBox>
 
+#include <QProgressDialog>
+
 #include <QDebug>
 
 #include <libnao.h>
@@ -55,7 +57,8 @@ class NMain : public QMainWindow {
             FileSizeExtractedRole,
             FileOffsetRole,
             FileExtraOffsetRole,
-            FileIndexRole
+            FileIndexRole,
+            FileDataTypeRole
         };
 
         QMenu* CRIWareContextMenu       = nullptr;

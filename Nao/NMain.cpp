@@ -90,16 +90,8 @@ void NMain::CRIWareHandler(QString file) {
     CRIWareReader = new NaoCRIWareReader(file);
     const QVector<NaoCRIWareReader::EmbeddedFile>& files = CRIWareReader->getFiles();
 
-    table->setColumnCount(5);
     table->setRowCount(files.size());
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-
-    table->setHorizontalHeaderItem(0, new QTableWidgetItem("#"));
-    table->setHorizontalHeaderItem(1, new QTableWidgetItem("File name"));
-    table->setHorizontalHeaderItem(2, new QTableWidgetItem("Embedded size"));
-    table->setHorizontalHeaderItem(3, new QTableWidgetItem("Extracted size"));
-    table->setHorizontalHeaderItem(4, new QTableWidgetItem("Compression"));
-
     extract_all_button->setDisabled(false);
 
     connect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this, &NMain::firstTableSelection);
@@ -107,35 +99,84 @@ void NMain::CRIWareHandler(QString file) {
     connect(extract_button, &QPushButton::clicked, this, &NMain::CRIWareExtractSingleFile);
     connect(extract_all_button, &QPushButton::clicked, this, &NMain::CRIWareExtractAll);
 
-    for (qint64 i = 0; i < files.size(); i++) {
-        NaoCRIWareReader::EmbeddedFile file = files.at(i);
+    if (CRIWareReader->isPak()) {
+        table->setColumnCount(5);
 
-        QTableWidgetItem* primary = new QTableWidgetItem(QString::number(i));
-        primary->setData(FileNameRole, file.name);
-        primary->setData(FilePathRole, file.path);
-        primary->setData(FileSizeEmbeddedRole, file.size);
-        primary->setData(FileSizeExtractedRole, file.extractedSize);
-        primary->setData(FileOffsetRole, file.offset);
-        primary->setData(FileExtraOffsetRole, file.extraOffset);
-        primary->setData(FileIndexRole, i);
+        table->setHorizontalHeaderItem(0, new QTableWidgetItem("#"));
+        table->setHorizontalHeaderItem(1, new QTableWidgetItem("File name"));
+        table->setHorizontalHeaderItem(2, new QTableWidgetItem("Embedded size"));
+        table->setHorizontalHeaderItem(3, new QTableWidgetItem("Extracted size"));
+        table->setHorizontalHeaderItem(4, new QTableWidgetItem("Compression"));
 
-        table->setItem(i, 0, primary);
+        for (qint64 i = 0; i < files.size(); i++) {
+            NaoCRIWareReader::EmbeddedFile file = files.at(i);
 
-        table->setItem(i, 1, new QTableWidgetItem((file.path + (file.path.isEmpty() ? "" : "/")) + file.name));
+            QTableWidgetItem* primary = new QTableWidgetItem(QString::number(i));
+            primary->setData(FileNameRole, file.name);
+            primary->setData(FilePathRole, file.path);
+            primary->setData(FileSizeEmbeddedRole, file.size);
+            primary->setData(FileSizeExtractedRole, file.extractedSize);
+            primary->setData(FileOffsetRole, file.offset);
+            primary->setData(FileExtraOffsetRole, file.extraOffset);
+            primary->setData(FileIndexRole, i);
 
-        QTableWidgetItem* embeddedSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.size));
-        embeddedSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        table->setItem(i, 2, embeddedSizeItem);
+            table->setItem(i, 0, primary);
 
-        QTableWidgetItem* extractedSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.extractedSize));
-        extractedSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        table->setItem(i, 3, extractedSizeItem);
+            table->setItem(i, 1, new QTableWidgetItem((file.path + (file.path.isEmpty() ? "" : "/")) + file.name));
 
-        QTableWidgetItem* compressionLevelItem = new QTableWidgetItem(
-                    (file.size != 0 && file.extractedSize != 0) ?
-                        QString::number((static_cast<qreal>(file.size) / static_cast<qreal>(file.extractedSize) * 100), 'f', 0) + "%" : "NaN");
-        compressionLevelItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        table->setItem(i, 4, compressionLevelItem);
+            QTableWidgetItem* embeddedSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.size));
+            embeddedSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            table->setItem(i, 2, embeddedSizeItem);
+
+            QTableWidgetItem* extractedSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.extractedSize));
+            extractedSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            table->setItem(i, 3, extractedSizeItem);
+
+            QTableWidgetItem* compressionLevelItem = new QTableWidgetItem(
+                        (file.size != 0 && file.extractedSize != 0) ?
+                            QString::number((static_cast<qreal>(file.size) / static_cast<qreal>(file.extractedSize) * 100), 'f', 0) + "%" : "NaN");
+            compressionLevelItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            table->setItem(i, 4, compressionLevelItem);
+        }
+    } else {
+        table->setColumnCount(6);
+        table->setRowCount(files.size());
+
+        table->setHorizontalHeaderItem(0, new QTableWidgetItem("#"));
+        table->setHorizontalHeaderItem(1, new QTableWidgetItem("Original file name"));
+        table->setHorizontalHeaderItem(2, new QTableWidgetItem("File size"));
+        table->setHorizontalHeaderItem(3, new QTableWidgetItem("Type"));
+        table->setHorizontalHeaderItem(4, new QTableWidgetItem("Avg. bitrate"));
+        table->setHorizontalHeaderItem(5, new QTableWidgetItem("Est. duration"));
+
+        for (qint64 i = 0; i < files.size(); i++) {
+            NaoCRIWareReader::EmbeddedFile file = files.at(i);
+
+            QTableWidgetItem* primary = new QTableWidgetItem(QString::number(i));
+            primary->setData(FileNameRole, file.name);
+            primary->setData(FileSizeEmbeddedRole, file.size);
+            primary->setData(FileSizeExtractedRole, file.size);
+            primary->setData(FileDataTypeRole, file.type);
+            primary->setData(FileIndexRole, i);
+
+            table->setItem(i, 0, primary);
+            table->setItem(i, 1, new QTableWidgetItem(file.name));
+            QTableWidgetItem* fileSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.size));
+            fileSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            table->setItem(i, 2, fileSizeItem);
+            table->setItem(i, 3, new QTableWidgetItem(
+                               (file.type == NaoCRIWareReader::EmbeddedFile::Video) ?
+                                   "Video" : "Audio"));
+
+            QTableWidgetItem* avbpsItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.avbps, true));
+            avbpsItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            table->setItem(i, 4, avbpsItem);
+
+            QTableWidgetItem* estDurationItem = new QTableWidgetItem(LibNao::Utils::getShortTime(
+                                                                         file.size / (file.avbps / 8.)));
+            estDurationItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            table->setItem(i, 5, estDurationItem);
+        }
     }
 }
 
@@ -156,26 +197,84 @@ void NMain::CRIWareExtractSingleFile() {
                     QMessageBox::Ok,
                     QMessageBox::Ok);
     } else {
+        QString outname = file->data(FileNameRole).toString();
+
+        if (!CRIWareReader->isPak()) {
+            outname = QFileInfo(outname).baseName() +
+                    ((static_cast<NaoCRIWareReader::EmbeddedFile::Type>(file->data(FileDataTypeRole).toInt())
+                      == NaoCRIWareReader::EmbeddedFile::Video) ? ".mpeg" : ".adx");
+        }
+
         QString output = QFileDialog::getSaveFileName(
                     this,
                     "Select output file",
-                    CRIWareSavePath + "/" + file->data(FileNameRole).toString());
+                    CRIWareSavePath + "/" + LibNao::Utils::sanitizeFileName(outname)
+                    );
 
         if (!output.isEmpty()) {
             CRIWareSavePath = QFileInfo(output).absolutePath();
 
-            QFile outfile(output);
+            QFile* outfile = new QFile(output);
 
-            if (!outfile.open(QIODevice::WriteOnly)) {
+            if (!outfile->open(QIODevice::WriteOnly)) {
                 QMessageBox::critical(
                             this,
-                            "File sav error",
+                            "File save error",
                             "Could not save the following file:\n\n" + file->data(FileNameRole).toString(),
                             QMessageBox::Ok,
                             QMessageBox::Ok);
             } else {
-                outfile.write(CRIWareReader->extractFileAt(file->data(FileIndexRole).toLongLong()));
-                outfile.close();
+                QProgressDialog* dialog = new QProgressDialog(
+                            "Extracting files...",
+                            "",
+                            0,
+                            0,
+                            this);
+                dialog->setCancelButton(nullptr);
+                dialog->setModal(true);
+                dialog->setFixedWidth(this->width() / 2);
+                dialog->setWindowFlags(dialog->windowFlags() & ~Qt::WindowCloseButtonHint & ~Qt::WindowContextHelpButtonHint);
+                dialog->show();
+
+                connect(CRIWareReader, &NaoCRIWareReader::extractProgress, this, [=](const qint64 current, const qint64 max) {
+                    if (dialog->maximum() != (max >> 10)) {
+                        dialog->setMaximum(max >> 10);
+                    }
+
+                    dialog->setValue(current >> 10);
+                });
+
+                QFutureWatcher<bool>* watcher = new QFutureWatcher<bool>();
+
+                connect(watcher, &QFutureWatcher<bool>::finished, this, [=]() {
+                    outfile->close();
+
+                    if (watcher->result()) {
+                        QMessageBox::information(
+                                    this,
+                                    "Done",
+                                    "Extraction complete.",
+                                    QMessageBox::Ok,
+                                    QMessageBox::Ok);
+                    } else {
+                        QMessageBox::critical(
+                                    this,
+                                    "File save error",
+                                    "Could not write the following file:\n\n" + file->data(FileNameRole).toString(),
+                                    QMessageBox::Ok,
+                                    QMessageBox::Ok);
+                    }
+
+                    disconnect(CRIWareReader, &NaoCRIWareReader::extractProgress, this, 0);
+
+                    watcher->deleteLater();
+                    dialog->deleteLater();
+                    outfile->deleteLater();
+                });
+
+                QFuture<bool> future = QtConcurrent::run(CRIWareReader, &NaoCRIWareReader::extractFileTo, file->data(FileIndexRole).toLongLong(), outfile);
+
+                watcher->setFuture(future);
             }
         }
     }
@@ -203,17 +302,23 @@ void NMain::CRIWareExtractAll() {
             totalFilesEmbeddedSize += files.at(i).size;
             totalFilesExtractedSize += files.at(i).extractedSize;
 
-            if (!files.at(i).path.isEmpty())
-                dirs.insert(files.at(i).path);
+            if (CRIWareReader->isPak()) {
+                if (!files.at(i).path.isEmpty())
+                    dirs.insert(files.at(i).path);
+            }
         }
 
-        QSet<QString>::const_iterator it = dirs.constBegin();
+        if (CRIWareReader->isPak()) {
+            QSet<QString>::const_iterator it = dirs.constBegin();
 
-        while (it != dirs.constEnd()) {
-            if (!outdir.mkpath(*it))
-                qFatal((QString("Could not create directory ") + outdir.path() + "/" + *it).toLatin1().data());
+            while (it != dirs.constEnd()) {
+                if (!outdir.mkpath(*it))
+                    qFatal((QString("Could not create directory ") + outdir.path() + "/" + *it).toLatin1().data());
 
-            ++it;
+                ++it;
+            }
+        } else {
+            outdir.mkdir(".");
         }
 
         QProgressDialog* dialog = new QProgressDialog(
@@ -256,11 +361,21 @@ void NMain::CRIWareExtractAll() {
         QFuture<void> future = QtConcurrent::run([=]() {
             for (int i = 0; i < fileCount; i++) {
                 NaoCRIWareReader::EmbeddedFile file = files.at(i);
-                QString target = outdir.absolutePath() + "/" + file.path + "/" + file.name;
+
+                QString target;
+                if (CRIWareReader->isPak()) {
+                    target = outdir.absolutePath() + "/" + file.path + "/" +
+                            LibNao::Utils::sanitizeFileName(file.name);
+                } else {
+                    target = outdir.absolutePath() +
+                            "/" + LibNao::Utils::sanitizeFileName(QFileInfo(file.name).baseName()) +
+                            ((file.type == NaoCRIWareReader::EmbeddedFile::Video) ? ".mpeg" : ".adx");
+                }
+
                 QFile outfile(target);
 
                 if (!outfile.open(QIODevice::WriteOnly))
-                    qFatal((QString("Could not open file ") + target + " for writing").toLatin1().data());
+                    qFatal(QString("Could not open file %0 for writing").arg(target).toLatin1().data());
 
                 outfile.write(CRIWareReader->extractFileAt(i));
                 outfile.close();
