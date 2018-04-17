@@ -5,12 +5,20 @@
 NMain::NMain()
     : QMainWindow(),
     savePath(QStandardPaths::standardLocations(QStandardPaths::DocumentsLocation).at(0)) {
+
+    // allow drag & drop
+
     setAcceptDrops(true);
+
+    // we hide the setup
 
     setup_window();
 }
 
 void NMain::dragEnterEvent(QDragEnterEvent *e) {
+
+    // accept any file we can read
+
     if (e->mimeData()->hasUrls()) {
         e->acceptProposedAction();
     }
@@ -18,6 +26,9 @@ void NMain::dragEnterEvent(QDragEnterEvent *e) {
 
 void NMain::dropEvent(QDropEvent *e) {
    e->accept();
+
+   // load the file from a QUrl
+
    loadFile(e->mimeData()->urls().at(0).path().mid(1));
 }
 
@@ -34,17 +45,31 @@ void NMain::openFile() {
 }
 
 void NMain::loadFile(QString file) {
+
+    // delete our readers
+
     switch (currentType) {
         case LibNao::CRIWare:
             delete CRIWareReader;
             break;
+
+        case LibNao::PG_DAT:
+            delete PG_DATReader;
+            break;
     }
 
     if (currentType != LibNao::None) {
+
+        // if we already have contents, clear the table from everything
+
         table->clear();
+
+        // disable extraction buttons
 
         extract_button->setDisabled(true);
         extract_all_button->setDisabled(true);
+
+        // disconnect slots
 
         disconnect(table, &QTableWidget::customContextMenuRequested, this, 0);
         disconnect(extract_button, &QPushButton::clicked, this, 0);
@@ -52,6 +77,9 @@ void NMain::loadFile(QString file) {
     }
 
     if (!LibNao::Utils::isFileSupported(file)) {
+
+        // show a warning if the file is not supported
+
         QMessageBox::warning(
                     this,
                     "File not supported",
@@ -59,10 +87,11 @@ void NMain::loadFile(QString file) {
                     QMessageBox::Ok,
                     QMessageBox::Ok);
     } else {
+        // handle file appropiately
+
         switch (currentType = LibNao::Utils::getFileType(file)) {
             case LibNao::CRIWare:
                 CRIWareHandler(file);
-
                 break;
 
             case LibNao::WWise:
@@ -79,6 +108,9 @@ void NMain::loadFile(QString file) {
 
             case LibNao::None:
             default:
+
+                // if somehow a file does get past
+
                 QMessageBox::warning(
                             this,
                             "File not supported",
@@ -92,6 +124,8 @@ void NMain::loadFile(QString file) {
 void NMain::PG_DATHandler(QString file) {
     PG_DATReader = new NaoDATReader(file);
     const QVector<NaoDATReader::EmbeddedFile>& files = PG_DATReader->getFiles();
+
+    // setup our table
 
     table->setRowCount(files.size());
     table->setColumnCount(4);
@@ -107,8 +141,12 @@ void NMain::PG_DATHandler(QString file) {
     table->setHorizontalHeaderItem(2, new QTableWidgetItem("File size"));
     table->setHorizontalHeaderItem(3, new QTableWidgetItem("File offset"));
 
+    // insert items
+
     for (qint64 i = 0; i < files.size(); ++i) {
         NaoDATReader::EmbeddedFile file = files.at(i);
+
+        // file number
 
         QTableWidgetItem* primary = new QTableWidgetItem(QString::number(i));
         primary->setData(FileNameRole, file.name);
@@ -119,11 +157,17 @@ void NMain::PG_DATHandler(QString file) {
 
         table->setItem(i, 0, primary);
 
+        // file name
+
         table->setItem(i, 1, new QTableWidgetItem(file.name));
+
+        // file size
 
         QTableWidgetItem* sizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.size));
         sizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         table->setItem(i, 2, sizeItem);
+
+        // file offset
 
         QTableWidgetItem* offsetItem = new QTableWidgetItem(QString::number(file.offset));
         offsetItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -135,6 +179,8 @@ void NMain::CRIWareHandler(QString file) {
     CRIWareReader = new NaoCRIWareReader(file);
     const QVector<NaoCRIWareReader::EmbeddedFile>& files = CRIWareReader->getFiles();
 
+    // setup our table
+
     table->setRowCount(files.size());
     extract_all_button->setDisabled(false);
 
@@ -142,6 +188,8 @@ void NMain::CRIWareHandler(QString file) {
     connect(table, &QTableWidget::customContextMenuRequested, this, &NMain::extractRightClickEvent);
     connect(extract_button, &QPushButton::clicked, this, &NMain::extractSingleFile);
     connect(extract_all_button, &QPushButton::clicked, this, &NMain::extractAll);
+
+    // handle cpk and usm differently
 
     if (CRIWareReader->isPak()) {
         table->setColumnCount(5);
@@ -155,6 +203,8 @@ void NMain::CRIWareHandler(QString file) {
         for (qint64 i = 0; i < files.size(); i++) {
             NaoCRIWareReader::EmbeddedFile file = files.at(i);
 
+            // file number
+
             QTableWidgetItem* primary = new QTableWidgetItem(QString::number(i));
             primary->setData(FileNameRole, file.name);
             primary->setData(FilePathRole, file.path);
@@ -166,15 +216,23 @@ void NMain::CRIWareHandler(QString file) {
 
             table->setItem(i, 0, primary);
 
+            // file path + name
+
             table->setItem(i, 1, new QTableWidgetItem((file.path + (file.path.isEmpty() ? "" : "/")) + file.name));
+
+            // embedded size
 
             QTableWidgetItem* embeddedSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.size));
             embeddedSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             table->setItem(i, 2, embeddedSizeItem);
 
+            // extracted (uncompressed) size
+
             QTableWidgetItem* extractedSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.extractedSize));
             extractedSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             table->setItem(i, 3, extractedSizeItem);
+
+            // compression in %
 
             QTableWidgetItem* compressionLevelItem = new QTableWidgetItem(
                         (file.size != 0 && file.extractedSize != 0) ?
@@ -196,6 +254,8 @@ void NMain::CRIWareHandler(QString file) {
         for (qint64 i = 0; i < files.size(); i++) {
             NaoCRIWareReader::EmbeddedFile file = files.at(i);
 
+            // file number
+
             QTableWidgetItem* primary = new QTableWidgetItem(QString::number(i));
             primary->setData(FileNameRole, file.name);
             primary->setData(FileSizeEmbeddedRole, file.size);
@@ -204,7 +264,13 @@ void NMain::CRIWareHandler(QString file) {
             primary->setData(FileIndexRole, i);
 
             table->setItem(i, 0, primary);
+
+            // original name of the file (seems to be from before it was converted into an usm
+
             table->setItem(i, 1, new QTableWidgetItem(file.name));
+
+            // file size
+
             QTableWidgetItem* fileSizeItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.size));
             fileSizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             table->setItem(i, 2, fileSizeItem);
@@ -212,9 +278,13 @@ void NMain::CRIWareHandler(QString file) {
                                (file.type == NaoCRIWareReader::EmbeddedFile::Video) ?
                                    "Video" : "Audio"));
 
+            // average bitrate
+
             QTableWidgetItem* avbpsItem = new QTableWidgetItem(LibNao::Utils::getShortSize(file.avbps, true));
             avbpsItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             table->setItem(i, 4, avbpsItem);
+
+            // duration as calculated from size and bitrate
 
             QTableWidgetItem* estDurationItem = new QTableWidgetItem(LibNao::Utils::getShortTime(
                                                                          file.size / (file.avbps / 8.)));
@@ -225,13 +295,19 @@ void NMain::CRIWareHandler(QString file) {
 }
 
 void NMain::extractRightClickEvent(const QPoint& p) {
+    // select the entire clicked row
+
     table->selectRow(table->rowAt(p.y()));
+
+    // show context menu
 
     extractContextMenu->popup(table->viewport()->mapToGlobal(p));
 }
 
 void NMain::extractSingleFile() {
     QTableWidgetItem* file = table->item(table->selectionModel()->selectedRows().at(0).row(), 0);
+
+    // sometimes a file has size 0
 
     if (file->data(FileSizeEmbeddedRole).toULongLong() == 0ULL) {
         QMessageBox::warning(
@@ -241,10 +317,18 @@ void NMain::extractSingleFile() {
                     QMessageBox::Ok,
                     QMessageBox::Ok);
     } else {
+
+        // get our name from the display
+
         QString outname = file->data(FileNameRole).toString();
+
+        // additional modification of file name if needed
 
         switch (currentType) {
             case LibNao::CRIWare: {
+
+                // forces mpeg or adx extension instead of input name (usually avi or wav)
+
                 if (!CRIWareReader->isPak()) {
                     outname = QFileInfo(outname).baseName() +
                             ((static_cast<NaoCRIWareReader::EmbeddedFile::Type>(file->data(FileDataTypeRole).toInt())
@@ -262,6 +346,9 @@ void NMain::extractSingleFile() {
                     );
 
         if (!output.isEmpty()) {
+
+            // cache the path for later use
+
             savePath = QFileInfo(output).absolutePath();
 
             QFile* outfile = new QFile(output);
@@ -285,6 +372,8 @@ void NMain::extractSingleFile() {
                 dialog->setFixedWidth(this->width() / 2);
                 dialog->setWindowFlags(dialog->windowFlags() & ~Qt::WindowCloseButtonHint & ~Qt::WindowContextHelpButtonHint);
                 dialog->show();
+
+                // handle different types appropiately
 
                 switch (currentType) {
                     case LibNao::CRIWare:
@@ -310,8 +399,12 @@ void NMain::extractSingleFile() {
 
                 QFutureWatcher<bool>* watcher = new QFutureWatcher<bool>();
 
+                // cleanup function
+
                 connect(watcher, &QFutureWatcher<bool>::finished, this, [=]() {
                     outfile->close();
+
+                    // show success our failure
 
                     if (watcher->result()) {
                         QMessageBox::information(
@@ -329,6 +422,8 @@ void NMain::extractSingleFile() {
                                     QMessageBox::Ok);
                     }
 
+                    // disconnect slots
+
                     switch (currentType) {
                         case LibNao::CRIWare:
                             disconnect(CRIWareReader, &NaoCRIWareReader::extractProgress, this, 0);
@@ -340,10 +435,14 @@ void NMain::extractSingleFile() {
                             break;
                     }
 
+                    // delete members
+
                     watcher->deleteLater();
                     dialog->deleteLater();
                     outfile->deleteLater();
                 });
+
+                // we run the extraction in a thread (otherwise the dialog would show nothing)
 
                 QFuture<bool> future;
 
@@ -380,9 +479,14 @@ void NMain::extractAll() {
                 savePath);
 
     if (!output.isEmpty()) {
+
+        // save output directory for later use
+
         savePath = output;
 
         QString originFileName;
+
+        // get the original file name (to make the target folder)
 
         switch (currentType) {
             case LibNao::CRIWare: {
@@ -396,10 +500,11 @@ void NMain::extractAll() {
 
                 break;
             }
-
         }
 
-        QDir outdir(output + "/" + QFileInfo(originFileName).fileName());
+        QDir outdir(output + "/" + QFileInfo(originFileName).fileName()); // originFileName can be a path, get the actual name from it like this
+
+        // save some values for display
 
         qint64 totalEmbeddedSize = 0;
         qint64 totalExtractedSize = 0;
@@ -411,6 +516,8 @@ void NMain::extractAll() {
                 const QVector<NaoCRIWareReader::EmbeddedFile>& files = CRIWareReader->getFiles();
                 fileCount = files.length();
 
+                // make a set (unique items) of all directories, and also calculate the total file size before and after extraction
+
                 for (int i = 0; i < fileCount; i++) {
                     totalEmbeddedSize += files.at(i).size;
                     totalExtractedSize += files.at(i).extractedSize;
@@ -420,6 +527,8 @@ void NMain::extractAll() {
                             dirs.insert(files.at(i).path);
                     }
                 }
+
+                // create all direcories if cpk, else just create a directory for output
 
                 if (CRIWareReader->isPak()) {
                     QSet<QString>::const_iterator it = dirs.constBegin();
@@ -438,10 +547,15 @@ void NMain::extractAll() {
             }
 
             case LibNao::PG_DAT: {
+
+                // create the output directory
+
                 outdir.mkdir(".");
 
                 const QVector<NaoDATReader::EmbeddedFile>& files = PG_DATReader->getFiles();
                 fileCount = files.size();
+
+                // calculate total file size
 
                 for (qint64 i = 0; i < fileCount; ++i) {
                     totalExtractedSize += files.at(i).size;
@@ -451,6 +565,8 @@ void NMain::extractAll() {
             }
         }
 
+        // QProgressDialog does not play well with values over 2^32,
+        // so we divide by 1024 if the value is over 2^31 (files larger than 4 TiB are rather unlikely)
 
         QProgressDialog* dialog = new QProgressDialog(
                     "Extracting files...",
@@ -467,12 +583,18 @@ void NMain::extractAll() {
         dialog->show();
 
         connect(this, &NMain::extractAllDialogProgress, this, [=](qint64 v) {
+
+            // adjust value to earlier mentioned limits
+
             dialog->setValue(dialog->value() + ((totalExtractedSize > 0x8FFFFFFFULL) ? (v >> 10) : v));
         });
 
         QFutureWatcher<void>* watcher = new QFutureWatcher<void>();
 
+        // display some information and perform cleanup when finished
+
         connect(watcher, &QFutureWatcher<void>::finished, this, [=]() {
+
             QMessageBox::information(
                         this,
                         "Done",
@@ -489,11 +611,15 @@ void NMain::extractAll() {
             dialog->deleteLater();
         });
 
+        // run our extraction in a thread
+
         QFuture<void> future = QtConcurrent::run([=]() {
             for (int i = 0; i < fileCount; ++i) {
                 switch (currentType) {
                     case LibNao::CRIWare: {
                         NaoCRIWareReader::EmbeddedFile file = CRIWareReader->getFiles().at(i);
+
+                        // construct output file path
 
                         QString target;
                         if (CRIWareReader->isPak()) {
@@ -510,6 +636,8 @@ void NMain::extractAll() {
                         if (!outfile.open(QIODevice::WriteOnly))
                             qFatal(QString("Could not open file %0 for writing").arg(target).toLatin1().data());
 
+                        // extract into memory (as of now)
+
                         outfile.write(CRIWareReader->extractFileAt(i));
                         outfile.close();
 
@@ -521,11 +649,15 @@ void NMain::extractAll() {
                     case LibNao::PG_DAT: {
                         NaoDATReader::EmbeddedFile file = PG_DATReader->getFiles().at(i);
 
+                        // construct output file path
+
                         QFile* outfile = new QFile(outdir.absolutePath() + "/" + file.name);
 
                         if (!outfile->open(QIODevice::WriteOnly)) {
                             qFatal(QString("Could not open file %0 for writing").arg(outfile->fileName()).toLatin1().data());
                         }
+
+                        // extract directly to the file device
 
                         PG_DATReader->extractFileTo(i, outfile);
 
@@ -546,7 +678,19 @@ void NMain::extractAll() {
     }
 }
 
+void NMain::firstTableSelection() {
+
+    // enable the single extraction button and disconnect itself
+
+    extract_button->setDisabled(false);
+
+    disconnect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this, &NMain::firstTableSelection);
+}
+
 void NMain::setup_window() {
+
+    // double hiding is double stealthy (and double as confusing)
+
     setup_menus();
 
     this->setWindowTitle("Nao");
@@ -588,6 +732,8 @@ void NMain::setup_window() {
 }
 
 void NMain::setup_menus() {
+    // variable naming consistency is a hard thing
+
     QMenuBar* menu = new QMenuBar(this);
     QMenu* file_menu = new QMenu("File", menu);
     QMenu* edit_menu = new QMenu("Edit", menu);
@@ -633,6 +779,9 @@ void NMain::setup_menus() {
 }
 
 void NMain::about() {
+
+    // this deserves some more love
+
     QMessageBox* about = new QMessageBox(this);
     about->setWindowTitle("About Nao");
     about->setText(
@@ -652,8 +801,3 @@ void NMain::aboutQt() {
     QMessageBox::aboutQt(this, "About Qt");
 }
 
-void NMain::firstTableSelection() {
-    extract_button->setDisabled(false);
-
-    disconnect(table->selectionModel(), &QItemSelectionModel::selectionChanged, this, &NMain::firstTableSelection);
-}

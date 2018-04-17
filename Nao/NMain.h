@@ -32,7 +32,7 @@ class NMain : public QMainWindow {
         ~NMain() {}
 
     signals:
-        void extractAllDialogProgress(qint64 v);
+        void extractAllDialogProgress(qint64 v); // signal to self
 
     private slots:
         void openFile();
@@ -44,13 +44,16 @@ class NMain : public QMainWindow {
         void dragEnterEvent(QDragEnterEvent* e);
         void dropEvent(QDropEvent* e);
 
-        void firstTableSelection();
+        void firstTableSelection(); // to enable the single-file extract button
 
         void extractSingleFile();
         void extractAll();
         void extractRightClickEvent(const QPoint& p);
 
     private:
+
+        // QTableWidgetItem data roles, starting at Qt::UserRole
+
         enum TableRoles {
             FileNameRole = Qt::UserRole,
             FilePathRole,
