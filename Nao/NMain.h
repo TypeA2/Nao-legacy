@@ -22,6 +22,7 @@
 
 #include <libnao.h>
 #include <NaoCRIWareReader.h>
+#include <NaoDATReader.h>
 
 class NMain : public QMainWindow {
 		Q_OBJECT
@@ -31,7 +32,7 @@ class NMain : public QMainWindow {
         ~NMain() {}
 
     signals:
-        void CRIWareDialogProgress(int v);
+        void extractAllDialogProgress(qint64 v);
 
     private slots:
         void openFile();
@@ -45,9 +46,9 @@ class NMain : public QMainWindow {
 
         void firstTableSelection();
 
-        void CRIWareExtractSingleFile();
-        void CRIWareExtractAll();
-        void CRIWareRightclickEvent(const QPoint& p);
+        void extractSingleFile();
+        void extractAll();
+        void extractRightClickEvent(const QPoint& p);
 
     private:
         enum TableRoles {
@@ -61,7 +62,7 @@ class NMain : public QMainWindow {
             FileDataTypeRole
         };
 
-        QMenu* CRIWareContextMenu       = nullptr;
+        QMenu* extractContextMenu       = nullptr;
         QPushButton* extract_button     = nullptr;
         QPushButton* extract_all_button = nullptr;
         QTableWidget* table             = nullptr;
@@ -69,10 +70,12 @@ class NMain : public QMainWindow {
         LibNao::FileType currentType = LibNao::None;
 
         NaoCRIWareReader* CRIWareReader = nullptr;
+        NaoDATReader* PG_DATReader = nullptr;
 
-        QString CRIWareSavePath;
+        QString savePath;
 
         void CRIWareHandler(QString file);
+        void PG_DATHandler(QString file);
         void setup_window();
         void setup_menus();
 };
