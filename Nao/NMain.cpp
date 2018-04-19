@@ -558,6 +558,7 @@ void NMain::extractAll() {
                 // calculate total file size
 
                 for (qint64 i = 0; i < fileCount; ++i) {
+                    totalEmbeddedSize += files.at(i).size;
                     totalExtractedSize += files.at(i).size;
                 }
 
